@@ -1,0 +1,17 @@
+name: Generate TravelFlux Insights
+
+on:
+  schedule:
+    - cron: "45 19 * * *"   # 1:15 AM IST daily
+  workflow_dispatch:
+
+jobs:
+  generate-insights:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Call Node.js Insights API
+        run: |
+          curl -X GET https://travelflux-node-backend.onrender.com/api/predictions/generate-insights
