@@ -4,16 +4,16 @@ const router = express.Router();
 const pool = require("../services/db");
 
 
-// ----------------------------------------
-// Generate insights from predictions
-// ----------------------------------------
+// ============================================
+// Generate insights from ML predictions
+// ============================================
 router.get("/generate-insights", async (req, res) => {
 
   try {
 
-    console.log("Fetching predictions...");
+    console.log("Fetching predictions from Neon...");
 
-    // Get all predictions
+    // Get predictions
     const predictionResult = await pool.query(`
       SELECT *
       FROM predictions
@@ -31,7 +31,7 @@ router.get("/generate-insights", async (req, res) => {
     }
 
 
-    console.log("Deleting old insights...");
+    console.log("Clearing old insights...");
 
     await pool.query(`DELETE FROM insights`);
 
@@ -46,8 +46,9 @@ router.get("/generate-insights", async (req, res) => {
       const predictedSeats = prediction.predicted_filled_seats;
 
 
-      // Get latest real capacity from redbus_fill_rates
+      // Fetch real capacity from redbus_fill_rates
       const capacityResult = await pool.query(
+
         `
         SELECT total_capacity
         FROM redbus_fill_rates
@@ -56,11 +57,12 @@ router.get("/generate-insights", async (req, res) => {
         LIMIT 1
         `,
         [route]
+
       );
 
 
-      let capacity = 1600; // fallback default
-
+      // fallback capacity
+      let capacity = 2000;
 
       if (capacityResult.rows.length > 0) {
 
@@ -69,19 +71,24 @@ router.get("/generate-insights", async (req, res) => {
       }
 
 
+      // Calculate fill rate
       const fillRate = (predictedSeats / capacity) * 100;
 
+
+      // ====================================
+      // Correct realistic demand thresholds
+      // ====================================
 
       let demandLevel = "LOW";
       let recommendation = "Normal demand";
 
-
-      if (fillRate >= 75) {
+      if (fillRate >= 65) {
 
         demandLevel = "HIGH";
         recommendation = "Add extra buses immediately";
 
-      } else if (fillRate >= 50) {
+      }
+      else if (fillRate >= 40) {
 
         demandLevel = "MEDIUM";
         recommendation = "Monitor demand";
@@ -105,7 +112,7 @@ router.get("/generate-insights", async (req, res) => {
       insights.push(insight);
 
 
-      // Save to Neon insights table
+      // Save insight in Neon
       await pool.query(
 
         `
@@ -134,7 +141,7 @@ router.get("/generate-insights", async (req, res) => {
     }
 
 
-    console.log("Insights stored successfully");
+    console.log("Insights generated successfully");
 
 
     res.json({
@@ -145,7 +152,8 @@ router.get("/generate-insights", async (req, res) => {
     });
 
 
-  } catch (error) {
+  }
+  catch (error) {
 
     console.error(error);
 
@@ -160,22 +168,27 @@ router.get("/generate-insights", async (req, res) => {
 });
 
 
-// ----------------------------------------
-// Fetch insights API
-// ----------------------------------------
+// ============================================
+// Fetch insights (for dashboard)
+// ============================================
 router.get("/insights", async (req, res) => {
 
   try {
 
-    const result = await pool.query(`
+    const result = await pool.query(
+
+      `
       SELECT *
       FROM insights
-      ORDER BY travel_date
-    `);
+      ORDER BY travel_date, route_name
+      `
+
+    );
 
     res.json(result.rows);
 
-  } catch (error) {
+  }
+  catch (error) {
 
     console.error(error);
 
