@@ -37,9 +37,7 @@ router.get("/generate-insights", async (req, res) => {
 
     const insights = [];
 
-
     for (const prediction of predictions) {
-
       const route = prediction.route_name;
       const date = prediction.travel_date;
       const predictedSeats = prediction.predicted_filled_seats;
@@ -94,25 +92,28 @@ router.get("/generate-insights", async (req, res) => {
       }
 
       // ============================================
-      // Demand classification and OTA Suggesion
+      // Demand classification
       // ============================================
       let demandLevel = "LOW";
-      let recommendation = avgPrice > 0
-        ? `Current market avg: ₹${avgPrice}. Maintain pricing.`
-        : "Normal demand";
+      let fleetRec = "Normal demand. Current fleet sufficient.";
+      let priceRec = avgPrice > 0
+        ? `Maintain current market avg: ₹${avgPrice}.`
+        : "Market stable. No pricing action needed.";
 
       if (fillRate >= 65) {
         demandLevel = "HIGH";
+        fleetRec = "CRITICAL: Deploy minimum 3-5 additional buses immediately.";
         const suggestedPrice = avgPrice > 0 ? Math.round(avgPrice * 1.25) : null;
-        recommendation = suggestedPrice
-          ? `High Demand! Suggested OTA Price: ₹${suggestedPrice} (+25% surge)`
-          : "Add extra buses immediately";
+        priceRec = suggestedPrice
+          ? `Surge Opportunity! Suggest OTA Price: ₹${suggestedPrice} (+25%)`
+          : "Demand exceeding supply. Consider rate increase.";
       } else if (fillRate >= 40) {
         demandLevel = "MEDIUM";
+        fleetRec = "Monitor closely. Keep 1-2 standby buses ready.";
         const suggestedPrice = avgPrice > 0 ? Math.round(avgPrice * 1.1) : null;
-        recommendation = suggestedPrice
-          ? `Medium Demand. Suggested OTA Price: ₹${suggestedPrice} (+10%)`
-          : "Monitor demand";
+        priceRec = suggestedPrice
+          ? `Healthy Demand. Suggest OTA Price: ₹${suggestedPrice} (+10%)`
+          : "Market demand rising slightly.";
       }
 
       const insight = {
@@ -122,7 +123,8 @@ router.get("/generate-insights", async (req, res) => {
         capacity,
         fillRate: fillRate.toFixed(2),
         demandLevel,
-        recommendation,
+        recommendation: fleetRec, // Default for Operators
+        price_recommendation: priceRec, // Specfic for OTAs
         average_price: avgPrice
       };
 
@@ -140,17 +142,19 @@ router.get("/generate-insights", async (req, res) => {
           predicted_filled_seats,
           demand_level,
           recommendation,
+          price_recommendation,
           average_price,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
         `,
         [
           route,
           date,
           predictedSeats,
           demandLevel,
-          recommendation,
+          fleetRec,
+          priceRec,
           avgPrice
         ]
       );
