@@ -14,4 +14,4 @@ jobs:
 
       - name: Call Node.js Insights API
         run: |
-          curl -X GET https://travelflux-node-backend.onrender.com/api/predictions/generate-insights
+          curl -X GET https://node-backend-xuum.onrender.com/api/predictions/generate-insights
