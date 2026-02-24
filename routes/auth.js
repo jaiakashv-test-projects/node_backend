@@ -9,11 +9,11 @@ router.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        // Check if user exists
-        const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+        // Check if user exists (case-insensitive)
+        const result = await pool.query("SELECT * FROM users WHERE LOWER(email) = LOWER($1)", [email]);
 
         if (result.rows.length === 0) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            return res.status(401).json({ message: "Account not found with this email" });
         }
 
         const user = result.rows[0];
@@ -22,7 +22,7 @@ router.post("/login", async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
 
         if (!isMatch) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            return res.status(401).json({ message: "Incorrect password for this account" });
         }
 
         // Create JWT
