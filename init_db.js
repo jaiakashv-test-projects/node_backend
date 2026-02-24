@@ -29,7 +29,10 @@ async function initDB() {
         for (const user of users) {
             const hashedPassword = await bcrypt.hash(user.password, 10);
             await pool.query(
-                "INSERT INTO users (email, password, role, name) VALUES ($1, $2, $3, $4) ON CONFLICT (email) DO NOTHING",
+                `INSERT INTO users (email, password, role, name) 
+         VALUES ($1, $2, $3, $4) 
+         ON CONFLICT (email) 
+         DO UPDATE SET password = EXCLUDED.password, role = EXCLUDED.role, name = EXCLUDED.name`,
                 [user.email, hashedPassword, user.role, user.name]
             );
             console.log(`User seeded: ${user.email} (${user.role})`);

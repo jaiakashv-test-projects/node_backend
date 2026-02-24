@@ -70,11 +70,11 @@ router.get("/generate-insights", async (req, res) => {
 
 
       // ============================================
-      // Fetch actual fill rate (CRITICAL FIX)
+      // Fetch actual fill rate and price (pricing logic)
       // ============================================
       const fillRateResult = await pool.query(
         `
-        SELECT fill_rate_percent
+        SELECT fill_rate_percent, average_price
         FROM redbus_fill_rates
         WHERE route_name = $1
         ORDER BY travel_date DESC
@@ -83,64 +83,55 @@ router.get("/generate-insights", async (req, res) => {
         [route]
       );
 
-
       let fillRate;
+      let avgPrice = 0;
 
       if (fillRateResult.rows.length > 0) {
-
         fillRate = fillRateResult.rows[0].fill_rate_percent;
-
-      }
-      else {
-
+        avgPrice = Number(fillRateResult.rows[0].average_price) || 0;
+      } else {
         fillRate = (predictedSeats / capacity) * 100;
-
       }
 
-
       // ============================================
-      // Demand classification
+      // Demand classification and OTA Suggesion
       // ============================================
-
       let demandLevel = "LOW";
-      let recommendation = "Normal demand";
-
+      let recommendation = avgPrice > 0
+        ? `Current market avg: ₹${avgPrice}. Maintain pricing.`
+        : "Normal demand";
 
       if (fillRate >= 65) {
-
         demandLevel = "HIGH";
-        recommendation = "Add extra buses immediately";
-
-      }
-      else if (fillRate >= 40) {
-
+        const suggestedPrice = avgPrice > 0 ? Math.round(avgPrice * 1.25) : null;
+        recommendation = suggestedPrice
+          ? `High Demand! Suggested OTA Price: ₹${suggestedPrice} (+25% surge)`
+          : "Add extra buses immediately";
+      } else if (fillRate >= 40) {
         demandLevel = "MEDIUM";
-        recommendation = "Monitor demand";
-
+        const suggestedPrice = avgPrice > 0 ? Math.round(avgPrice * 1.1) : null;
+        recommendation = suggestedPrice
+          ? `Medium Demand. Suggested OTA Price: ₹${suggestedPrice} (+10%)`
+          : "Monitor demand";
       }
-
 
       const insight = {
-
         route,
         date,
         predictedSeats,
         capacity,
         fillRate: fillRate.toFixed(2),
         demandLevel,
-        recommendation
-
+        recommendation,
+        average_price: avgPrice
       };
 
-
       insights.push(insight);
-
 
       // ============================================
       // Save insight to Neon
       // ============================================
       await pool.query(
-
         `
         INSERT INTO insights
         (
@@ -149,19 +140,19 @@ router.get("/generate-insights", async (req, res) => {
           predicted_filled_seats,
           demand_level,
           recommendation,
+          average_price,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
         `,
-
         [
           route,
           date,
           predictedSeats,
           demandLevel,
-          recommendation
+          recommendation,
+          avgPrice
         ]
-
       );
 
     }
