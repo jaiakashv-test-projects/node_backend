@@ -1,51 +1,44 @@
 const express = require("express");
 const router = express.Router();
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const pool = require("../services/db");
 
-// Login Endpoint
+// In a real app, you would fetch this from the database
+const MOCK_USERS = [
+    { username: 'operator', password: 'password123', role: 'operator', path: '/' },
+    { username: 'admin', password: 'password123', role: 'admin', path: '/analytics' },
+    { username: 'fleet_manager', password: 'password123', role: 'fleet', path: '/fleet' },
+    { username: 'ota', password: 'password123', role: 'ota', path: '/ota' },
+    { username: 'gov', password: 'password123', role: 'government', path: '/gov' }
+];
+
 router.post("/login", async (req, res) => {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
     try {
-        // Check if user exists (case-insensitive)
-        const result = await pool.query("SELECT * FROM users WHERE LOWER(email) = LOWER($1)", [email]);
+        const user = MOCK_USERS.find(u => u.username === username && u.password === password);
 
-        if (result.rows.length === 0) {
-            return res.status(401).json({ message: "Account not found with this email" });
+        if (user) {
+            // In a real app, generate a JWT here
+            res.json({
+                success: true,
+                user: {
+                    username: user.username,
+                    role: user.role,
+                    path: user.path
+                },
+                message: "Login successful"
+            });
+        } else {
+            res.status(401).json({
+                success: false,
+                message: "Invalid credentials"
+            });
         }
-
-        const user = result.rows[0];
-
-        // Verify password
-        const isMatch = await bcrypt.compare(password, user.password);
-
-        if (!isMatch) {
-            return res.status(401).json({ message: "Incorrect password for this account" });
-        }
-
-        // Create JWT
-        const token = jwt.sign(
-            { id: user.id, role: user.role, email: user.email },
-            process.env.JWT_SECRET || "travelflux_secret_key",
-            { expiresIn: "24h" }
-        );
-
-        res.json({
-            message: "Login successful",
-            token,
-            user: {
-                id: user.id,
-                email: user.email,
-                role: user.role,
-                name: user.name
-            }
+    } catch (error) {
+        console.error("Login error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Server error during login"
         });
-
-    } catch (err) {
-        console.error("Login error:", err);
-        res.status(500).json({ message: "Server error" });
     }
 });
 
