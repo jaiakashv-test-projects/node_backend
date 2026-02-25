@@ -14,9 +14,9 @@ router.post("/login", async (req, res) => {
     const { username, password } = req.body; // username here is treated as the email
 
     try {
-        // Search for user by email (from the screenshot provided)
+        // Search for user by email with case-insensitivity and trimming
         const result = await pool.query(
-            "SELECT * FROM users WHERE email = $1",
+            "SELECT * FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))",
             [username]
         );
 
