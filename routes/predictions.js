@@ -70,11 +70,11 @@ router.get("/generate-insights", async (req, res) => {
 
 
       // ============================================
-      // Fetch actual fill rate (CRITICAL FIX)
+      // Fetch actual fill rate and price (CRITICAL FIX)
       // ============================================
       const fillRateResult = await pool.query(
         `
-        SELECT fill_rate_percent
+        SELECT fill_rate_percent, average_price
         FROM redbus_fill_rates
         WHERE route_name = $1
         ORDER BY travel_date DESC
@@ -85,10 +85,12 @@ router.get("/generate-insights", async (req, res) => {
 
 
       let fillRate;
+      let actualPrice = 0;
 
       if (fillRateResult.rows.length > 0) {
 
         fillRate = fillRateResult.rows[0].fill_rate_percent;
+        actualPrice = fillRateResult.rows[0].average_price || 0;
 
       }
       else {
@@ -128,7 +130,9 @@ router.get("/generate-insights", async (req, res) => {
         capacity,
         fillRate: fillRate.toFixed(2),
         demandLevel,
-        recommendation
+        recommendation,
+        averagePrice: actualPrice,
+        priceRecommendation: prediction.suggested_price || 0
 
       };
 
@@ -149,9 +153,11 @@ router.get("/generate-insights", async (req, res) => {
           predicted_filled_seats,
           demand_level,
           recommendation,
+          average_price,
+          price_recommendation,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
         `,
 
         [
@@ -159,7 +165,9 @@ router.get("/generate-insights", async (req, res) => {
           date,
           predictedSeats,
           demandLevel,
-          recommendation
+          recommendation,
+          actualPrice,
+          prediction.suggested_price || 0
         ]
 
       );
