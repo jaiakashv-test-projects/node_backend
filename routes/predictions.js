@@ -122,6 +122,15 @@ router.get("/generate-insights", async (req, res) => {
       }
 
 
+      const suggestedPrice = Math.round(prediction.suggested_price || actualPrice);
+      let priceRecText = `Recommended to change the price to ${suggestedPrice}`;
+
+      // If they are exactly the same, maybe suggest maintaining or a slight tweak for visibility
+      if (Math.abs(suggestedPrice - actualPrice) < 1) {
+        priceRecText = `Price is optimal at ${actualPrice}. Maintain current pricing.`;
+      }
+
+
       const insight = {
 
         route,
@@ -132,7 +141,7 @@ router.get("/generate-insights", async (req, res) => {
         demandLevel,
         recommendation,
         averagePrice: actualPrice,
-        priceRecommendation: prediction.suggested_price || 0
+        priceRecommendation: priceRecText
 
       };
 
@@ -167,7 +176,7 @@ router.get("/generate-insights", async (req, res) => {
           demandLevel,
           recommendation,
           actualPrice,
-          prediction.suggested_price || 0
+          priceRecText
         ]
 
       );
