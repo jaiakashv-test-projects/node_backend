@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const pool = require("../services/db");
+const { getCalendarContext } = require("../services/calendarService");
 
 
 // ============================================
@@ -101,8 +102,9 @@ router.get("/generate-insights", async (req, res) => {
 
 
       // ============================================
-      // Demand classification
+      // Demand classification & Context
       // ============================================
+      const context = await getCalendarContext(date);
 
       let demandLevel = "LOW";
       let recommendation = "Normal demand";
@@ -111,13 +113,17 @@ router.get("/generate-insights", async (req, res) => {
       if (fillRate >= 65) {
 
         demandLevel = "HIGH";
-        recommendation = "Add extra buses immediately";
+        recommendation = context
+          ? `${context} - High demand expected. Deploy extra fleet.`
+          : "High demand expected. Add extra buses immediately.";
 
       }
       else if (fillRate >= 40) {
 
         demandLevel = "MEDIUM";
-        recommendation = "Monitor demand";
+        recommendation = context
+          ? `${context} - Moderate increase. Monitor load.`
+          : "Moderate demand. Monitor closely.";
 
       }
 
@@ -164,9 +170,11 @@ router.get("/generate-insights", async (req, res) => {
           recommendation,
           average_price,
           price_recommendation,
+          fill_rate,
+          capacity,
           created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
         `,
 
         [
@@ -176,7 +184,9 @@ router.get("/generate-insights", async (req, res) => {
           demandLevel,
           recommendation,
           actualPrice,
-          priceRecText
+          priceRecText,
+          fillRate.toFixed(2),
+          capacity
         ]
 
       );
