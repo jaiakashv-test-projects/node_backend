@@ -90,7 +90,7 @@ router.get("/generate-insights", async (req, res) => {
 
       if (fillRateResult.rows.length > 0) {
 
-        fillRate = fillRateResult.rows[0].fill_rate_percent;
+        fillRate = fillRateResult.rows[0].fill_rate || 0;
         actualPrice = fillRateResult.rows[0].average_price || 0;
 
       }
